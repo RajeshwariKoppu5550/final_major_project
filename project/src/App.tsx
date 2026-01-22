@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import LandingPage from './components/LandingPage';
 import Auth from './components/Auth';
 import { ContractorDashboard } from './components/ContractorDashboard';
@@ -69,18 +69,18 @@ function App() {
   useEffect(() => {
     // Initialize database with demo users
     initializeDatabase();
-    
+
     // Check for existing user session
     const savedUser = localStorage.getItem('worklink_user');
     const rememberMe = localStorage.getItem('worklink_remember');
-    
+
     if (savedUser) {
       try {
         const userData = JSON.parse(savedUser);
         // Verify user still exists in database and get latest data
         const users = getUserDatabase();
         const currentUser = users.find((u: any) => u.id === userData.id);
-        
+
         if (currentUser) {
           // Update user with latest data from database
           const updatedUser: User = {
@@ -113,10 +113,10 @@ function App() {
   const handleUserUpdate = (updatedUser: User) => {
     // Update user in state
     setUser(updatedUser);
-    
+
     // Update user in localStorage
     localStorage.setItem('worklink_user', JSON.stringify(updatedUser));
-    
+
     // Update user in database
     const users = getUserDatabase();
     const userIndex = users.findIndex((u: any) => u.id === updatedUser.id);
@@ -144,49 +144,47 @@ function App() {
     );
   }
 
-  if (!user && location.pathname !== '/auth') {
+  if (!user && location.pathname !== '/auth' && location.pathname !== '/') {
     return <Navigate to="/auth" replace />;
   }
 
   return (
-    <Router>
-      <div className="min-h-screen bg-white">
-        <Navigation user={user} onLogout={handleLogout} />
-        <Routes>
-          <Route path="/" element={<LandingPage />} />
-          <Route 
-            path="/auth" 
-            element={
-              user ? (
-                <Navigate to={user.type === UserType.CONTRACTOR ? "/contractor-dashboard" : "/worker-dashboard"} />
-              ) : (
-                <Auth onLogin={handleLogin} />
-              )
-            } 
-          />
-          <Route 
-            path="/contractor-dashboard" 
-            element={
-              user && user.type === UserType.CONTRACTOR ? (
-                <ContractorDashboard user={user} onUserUpdate={handleUserUpdate} />
-              ) : (
-                <Navigate to="/auth" />
-              )
-            } 
-          />
-          <Route 
-            path="/worker-dashboard" 
-            element={
-              user && user.type === UserType.WORKER ? (
-                <WorkerDashboard user={user} onUserUpdate={handleUserUpdate} />
-              ) : (
-                <Navigate to="/auth" />
-              )
-            } 
-          />
-        </Routes>
-      </div>
-    </Router>
+    <div className="min-h-screen bg-white">
+      <Navigation user={user} onLogout={handleLogout} />
+      <Routes>
+        <Route path="/" element={<LandingPage />} />
+        <Route
+          path="/auth"
+          element={
+            user ? (
+              <Navigate to={user.type === UserType.CONTRACTOR ? "/contractor-dashboard" : "/worker-dashboard"} />
+            ) : (
+              <Auth onLogin={handleLogin} />
+            )
+          }
+        />
+        <Route
+          path="/contractor-dashboard"
+          element={
+            user && user.type === UserType.CONTRACTOR ? (
+              <ContractorDashboard user={user} onUserUpdate={handleUserUpdate} />
+            ) : (
+              <Navigate to="/auth" />
+            )
+          }
+        />
+        <Route
+          path="/worker-dashboard"
+          element={
+            user && user.type === UserType.WORKER ? (
+              <WorkerDashboard user={user} onUserUpdate={handleUserUpdate} />
+            ) : (
+              <Navigate to="/auth" />
+            )
+          }
+        />
+      </Routes>
+    </div>
   );
 }
 
