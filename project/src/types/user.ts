@@ -89,6 +89,8 @@ export interface ConnectionRequest {
   status: 'pending' | 'accepted' | 'declined';
   workPostId?: string;
   workPostTitle?: string;
+  workerPostId?: string;
+  workerPostTitle?: string;
   timestamp: string;
   jobDetails?: any;
   workerDetails?: any;

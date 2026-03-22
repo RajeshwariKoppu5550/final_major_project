@@ -9,6 +9,8 @@ const ConnectionRequestSchema = new mongoose.Schema({
   status: { type: String, enum: ['pending', 'accepted', 'declined'], default: 'pending' },
   workPostId: { type: mongoose.Schema.Types.ObjectId, ref: 'WorkPost' },
   workPostTitle: String,
+  workerPostId: { type: mongoose.Schema.Types.ObjectId, ref: 'WorkerPost' },
+  workerPostTitle: String,
   timestamp: { type: Date, default: Date.now },
   jobDetails: mongoose.Schema.Types.Mixed,
   workerDetails: mongoose.Schema.Types.Mixed

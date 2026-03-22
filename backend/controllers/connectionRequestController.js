@@ -2,6 +2,27 @@ const ConnectionRequest = require('../models/ConnectionRequest');
 
 exports.createConnectionRequest = async (req, res) => {
   try {
+    const { senderId, receiverId, type } = req.body;
+
+    if (!senderId || !receiverId) {
+      return res.status(400).json({ message: 'Sender ID and Receiver ID are required.' });
+    }
+
+    if (senderId === receiverId) {
+      return res.status(400).json({ message: 'You cannot send a contact request to yourself.' });
+    }
+
+    // Check for existing pending request
+    const existingRequest = await ConnectionRequest.findOne({
+      senderId,
+      receiverId,
+      status: 'pending'
+    });
+
+    if (existingRequest) {
+      return res.status(400).json({ message: 'A pending request already exists.' });
+    }
+
     const request = new ConnectionRequest(req.body);
     await request.save();
     res.status(201).json(request);
