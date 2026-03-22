@@ -167,7 +167,7 @@ function App() {
           path="/contractor-dashboard"
           element={
             user && user.type === UserType.CONTRACTOR ? (
-              <ContractorDashboard user={user} onUserUpdate={handleUserUpdate} />
+              <ContractorDashboard user={user} onLogout={handleLogout} onUpdateUser={handleUserUpdate} />
             ) : (
               <Navigate to="/auth" />
             )
@@ -177,7 +177,7 @@ function App() {
           path="/worker-dashboard"
           element={
             user && user.type === UserType.WORKER ? (
-              <WorkerDashboard user={user} onUserUpdate={handleUserUpdate} />
+              <WorkerDashboard user={user} onLogout={handleLogout} onUpdateUser={handleUserUpdate} />
             ) : (
               <Navigate to="/auth" />
             )

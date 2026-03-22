@@ -63,6 +63,13 @@ const Navigation: React.FC<NavigationProps> = ({ user, onLogout }) => {
                 >
                   Dashboard
                 </Link>
+                <button
+                  onClick={onLogout}
+                  className="flex items-center space-x-2 text-red-600 hover:text-red-700 px-3 py-2 rounded-md text-sm font-medium transition-colors"
+                >
+                  <LogOut size={18} />
+                  <span>Logout</span>
+                </button>
               </>
             ) : (
               <Link
@@ -109,6 +116,16 @@ const Navigation: React.FC<NavigationProps> = ({ user, onLogout }) => {
                 >
                   Dashboard
                 </Link>
+                <button
+                  onClick={() => {
+                    onLogout();
+                    setIsMenuOpen(false);
+                  }}
+                  className="flex items-center space-x-2 w-full px-3 py-2 text-red-600 hover:text-red-700 font-medium"
+                >
+                  <LogOut size={18} />
+                  <span>Logout</span>
+                </button>
               </>
             ) : (
               <Link
