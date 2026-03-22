@@ -35,17 +35,16 @@ export interface WorkPost {
   id: string;
   contractorId: string;
   contractorName: string;
+  title: string;
   workType: string;
   pincode: string;
   description: string;
-  budget: {
-    min: number;
-    max: number;
-  };
+  budget: string;
   startDate?: string;
   endDate?: string;
   createdAt: string;
   status: 'active' | 'closed';
+  _id?: string;
 }
 
 export interface WorkerPost {
@@ -78,6 +77,21 @@ export interface ChatConversation {
   participantNames: { [userId: string]: string };
   lastMessage?: ChatMessage;
   lastActivity: string;
+}
+
+export interface ConnectionRequest {
+  id: string;
+  senderId: string;
+  receiverId: string;
+  senderName: string;
+  receiverName: string;
+  type: 'worker_to_contractor' | 'contractor_to_worker';
+  status: 'pending' | 'accepted' | 'declined';
+  workPostId?: string;
+  workPostTitle?: string;
+  timestamp: string;
+  jobDetails?: any;
+  workerDetails?: any;
 }
 
 export interface SavedItem {

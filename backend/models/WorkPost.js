@@ -7,10 +7,7 @@ const WorkPostSchema = new mongoose.Schema({
   workType: String,
   pincode: String,
   description: String,
-  budget: {
-    min: Number,
-    max: Number
-  },
+  budget: String,
   startDate: String,
   endDate: String,
   createdAt: { type: Date, default: Date.now },

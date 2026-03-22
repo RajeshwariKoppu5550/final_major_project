@@ -103,7 +103,7 @@ const Auth: React.FC<AuthProps> = ({ onLogin }) => {
     return true;
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     setSuccess('');
@@ -114,32 +114,44 @@ const Auth: React.FC<AuthProps> = ({ onLogin }) => {
     
     setIsLoading(true);
     
-    // Simulate API delay
-    setTimeout(() => {
+    try {
+      const endpoint = isLogin ? '/api/users/login' : '/api/users/register';
+      const body = isLogin 
+        ? { email: formData.email, password: formData.password }
+        : { 
+            email: formData.email, 
+            password: formData.password, 
+            name: formData.name, 
+            type: userType,
+            profile: userType === UserType.CONTRACTOR ? {
+              companyName: '',
+              companyType: '',
+              businessLocation: ''
+            } : {
+              skills: [],
+              experience: 0,
+              location: formData.location || '',
+              availability: 'Available'
+            }
+          };
+
+      const response = await fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || 'Authentication failed');
+      }
+
       if (isLogin) {
-        // Sign In Process
-        const existingUser = findUserByEmail(formData.email);
-        
-        if (!existingUser) {
-          setError('Invalid email. No account found with this email address.');
-          setIsLoading(false);
-          return;
-        }
-        
-        if (existingUser.password !== formData.password) {
-          setError('Invalid email or password.');
-          setIsLoading(false);
-          return;
-        }
-        
         // Successful login
-        const user: User = {
-          id: existingUser.id,
-          email: existingUser.email,
-          name: existingUser.name,
-          type: existingUser.type,
-          profile: existingUser.profile
-        };
+        if (data.token) {
+          localStorage.setItem('worklink_token', data.token);
+        }
         
         setSuccess('Welcome back! Redirecting to your dashboard...');
         
@@ -151,57 +163,21 @@ const Auth: React.FC<AuthProps> = ({ onLogin }) => {
         }
         
         setTimeout(() => {
-          onLogin(user);
+          onLogin(data.user);
         }, 1000);
-        
       } else {
-        // Sign Up Process
-        const existingUser = findUserByEmail(formData.email);
-        
-        if (existingUser) {
-          setError('This email is already registered. Please sign in.');
-          setIsLoading(false);
-          return;
-        }
-        
-        // Create new user data
-        const newUserData = {
-          email: formData.email,
-          password: formData.password,
-          name: formData.name,
-          type: userType,
-          profile: userType === UserType.CONTRACTOR ? {
-            companyName: '',
-            companyType: '',
-            businessLocation: ''
-          } : {
-            skills: [],
-            experience: 0,
-            location: formData.location || '',
-            availability: 'Available'
-          }
-        };
-
-        // Save to database
-        const savedUser = createUser(newUserData);
-        
-        // Create user object for login
-        const user: User = {
-          id: savedUser.id,
-          email: savedUser.email,
-          name: savedUser.name,
-          type: savedUser.type,
-          profile: savedUser.profile
-        };
-
-        setSuccess('Account created successfully! Redirecting to your dashboard...');
+        // Successful registration
+        setSuccess('Account created successfully! Please sign in.');
         setTimeout(() => {
-          onLogin(user);
-        }, 1000);
+          setIsLogin(true);
+          setFormData({ ...formData, password: '', confirmPassword: '' });
+        }, 2000);
       }
-      
+    } catch (err: any) {
+      setError(err.message || 'An error occurred during authentication.');
+    } finally {
       setIsLoading(false);
-    }, 1000);
+    }
   };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
