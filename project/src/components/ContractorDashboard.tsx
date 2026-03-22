@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { User, WorkPost, ConnectionRequest, ChatMessage } from '../types/user';
-import { Search, MapPin, Clock, IndianRupee, MessageCircle, Heart, Edit, Trash2, Send, X, Check, Mail, Phone, Star, Calendar, User as UserIcon, Briefcase, Plus, Filter, Bell, LogOut } from 'lucide-react';
+import { Search, MapPin, Clock, IndianRupee, MessageCircle, Heart, Edit, Trash2, Send, X, Check, Mail, Phone, Star, Calendar, User as UserIcon, Briefcase, Plus, Filter, Bell, LogOut, RefreshCw } from 'lucide-react';
 
 interface ContractorDashboardProps {
   user: User;
@@ -73,10 +73,14 @@ export const ContractorDashboard: React.FC<ContractorDashboardProps> = ({ user, 
       const allChats = await chatsRes.json();
       const savedItemsResult = await savedRes.json();
 
-      setMyWorkPosts(allWorkPosts && Array.isArray(allWorkPosts) ? allWorkPosts.filter((post: any) => post.contractorId === user.id || post.userId === user.id) : []);
+      setMyWorkPosts(allWorkPosts && Array.isArray(allWorkPosts) ? allWorkPosts.filter((post: any) => 
+        (post.contractorId?.toString() === user.id?.toString()) || 
+        (post.userId?.toString() === user.id?.toString())
+      ) : []);
       setWorkers(allWorkerProfiles && Array.isArray(allWorkerProfiles) ? allWorkerProfiles.filter((p: any) => p.status === 'active') : []);
       setConnectionRequests(allRequests && Array.isArray(allRequests) ? allRequests.filter((r: ConnectionRequest) => 
-        r.receiverId === user.id || r.senderId === user.id
+        r.receiverId?.toString() === user.id?.toString() || 
+        r.senderId?.toString() === user.id?.toString()
       ) : []);
       setChats(allChats && typeof allChats === 'object' ? allChats : {});
 
@@ -140,9 +144,16 @@ export const ContractorDashboard: React.FC<ContractorDashboardProps> = ({ user, 
     return matchesQuery && matchesPincode && matchesExperience && matchesWage;
   });
 
-  const handleContactWorker = (worker: any) => {
+  const handleContactWorker = async (worker: any) => {
+    const workerId = worker.workerId || worker.userId || (worker as any)._id;
+    
+    if (!workerId) {
+      alert('Cannot find worker ID. Please try again later.');
+      return;
+    }
+
     const existingRequest = connectionRequests.find(r => 
-      r.receiverId === worker.userId && r.senderId === user.id && r.status === 'pending'
+      (r.receiverId === workerId && r.senderId === user.id && r.status === 'pending')
     );
 
     if (existingRequest) {
@@ -150,17 +161,16 @@ export const ContractorDashboard: React.FC<ContractorDashboardProps> = ({ user, 
       return;
     }
 
-    const newRequest: ConnectionRequest = {
-      id: Date.now().toString(),
+    const newRequestData = {
       senderId: user.id,
-      receiverId: worker.userId,
+      receiverId: workerId,
       senderName: user.name,
       receiverName: worker.name,
       type: 'contractor_to_worker',
       status: 'pending',
-      workPostId: '',
+      workerPostId: worker._id || worker.id,
+      workerPostTitle: worker.skill,
       workPostTitle: 'Direct Contact',
-      timestamp: new Date().toISOString(),
       workerDetails: {
         name: worker.name,
         skill: worker.skill,
@@ -169,8 +179,27 @@ export const ContractorDashboard: React.FC<ContractorDashboardProps> = ({ user, 
         wage: worker.expectedWage
       }
     };
-    // In real app, post to /api/connection-requests
-    alert(`Contact request sent to ${worker.name}!`);
+
+    try {
+      const response = await fetch('/api/connection-requests', {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ' + localStorage.getItem('worklink_token')
+        },
+        body: JSON.stringify(newRequestData)
+      });
+
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.message || 'Failed to send contact request');
+      }
+
+      await loadData();
+      alert(`Contact request sent to ${worker.name}!`);
+    } catch (err: any) {
+      alert(err.message || 'Failed to send contact request. Please try again.');
+    }
   };
 
   const handleSaveWorker = async (worker: any) => {
@@ -284,10 +313,22 @@ export const ContractorDashboard: React.FC<ContractorDashboardProps> = ({ user, 
     }
   };
 
-  const handleConnectionResponse = (requestId: string, response: 'accepted' | 'declined') => {
-    // In real app, patch /api/connection-requests/:id
-    loadData();
-    alert(response === 'accepted' ? 'Connection accepted!' : 'Connection declined.');
+  const handleConnectionResponse = async (requestId: string, status: 'accepted' | 'declined') => {
+    try {
+      const response = await fetch(`/api/connection-requests/${requestId}`, {
+        method: 'PUT',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ' + localStorage.getItem('worklink_token')
+        },
+        body: JSON.stringify({ status })
+      });
+      if (!response.ok) throw new Error('Failed to update request');
+      await loadData();
+      alert(status === 'accepted' ? 'Connection accepted!' : 'Connection declined.');
+    } catch (err) {
+      alert('Failed to update connection request.');
+    }
   };
 
   const sendMessage = () => {
@@ -374,15 +415,96 @@ export const ContractorDashboard: React.FC<ContractorDashboardProps> = ({ user, 
                 <div>
                   <h3 className="text-xl font-semibold text-gray-800">{worker.name}</h3>
                   <div className="text-gray-600">{worker.skill}</div>
-                  <div className="text-gray-600">{worker.experience} years exp</div>
-                  <div className="text-green-600 font-semibold">₹{worker.expectedWage}/hour</div>
+                  <div className="text-gray-600 font-medium">Experience: {worker.experience} years</div>
+                  <div className="flex items-center text-gray-500 mt-1">
+                    <MapPin size={14} className="mr-1" />
+                    <span>Location: {worker.pincode}</span>
+                  </div>
+                  <div className="flex items-center text-gray-500 mt-1">
+                    <Phone size={14} className="mr-1" />
+                    {worker.mobile || worker.phone || 'No phone number provided'}
+                  </div>
+                  <div className="text-green-600 font-semibold mt-1">Expected Wage: ₹{worker.expectedWage}/hour</div>
                 </div>
                 <div className="flex flex-col space-y-2">
-                  <button onClick={() => handleContactWorker(worker)} className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors">Contact</button>
+                  {connectionRequests.some(r => 
+                    r.receiverId === (worker.workerId || worker.userId || (worker as any)._id) && 
+                    r.workerPostId === (worker._id || worker.id) && 
+                    r.status === 'pending'
+                  ) ? (
+                    <button className="bg-gray-400 text-white px-4 py-2 rounded-md cursor-not-allowed" disabled>Request Sent</button>
+                  ) : (
+                    <button onClick={() => handleContactWorker(worker)} className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors">Contact</button>
+                  )}
                   <button onClick={() => handleSaveWorker(worker)} className="bg-gray-100 text-gray-700 px-4 py-2 rounded-md hover:bg-gray-200 transition-colors flex items-center">
                     <Heart className="w-4 h-4 mr-2" /> Save
                   </button>
                 </div>
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+    </div>
+  );
+
+  const renderRequests = () => (
+    <div className="space-y-6">
+      <div className="flex justify-between items-center">
+        <h3 className="text-lg font-semibold text-gray-800">Connection Requests</h3>
+        <button onClick={loadData} className="text-sm bg-gray-100 text-gray-600 px-3 py-1 rounded hover:bg-gray-200 flex items-center">
+          <RefreshCw size={14} className="mr-1" /> Refresh
+        </button>
+      </div>
+      <div className="space-y-4">
+        {connectionRequests.length === 0 ? (
+          <div className="bg-white rounded-lg shadow-md p-8 text-center text-gray-500">
+            No connection requests found.
+          </div>
+        ) : (
+          connectionRequests.map((request) => (
+            <div key={request.id || (request as any)._id} className="bg-white rounded-lg shadow-md p-6">
+              <div className="flex justify-between items-start">
+                <div>
+                  <div className="flex items-center space-x-2 mb-2">
+                    <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
+                      request.status === 'pending' ? 'bg-yellow-100 text-yellow-700' :
+                      request.status === 'accepted' ? 'bg-green-100 text-green-700' :
+                      'bg-red-100 text-red-700'
+                    }`}>
+                      {request.status.toUpperCase()}
+                    </span>
+                    <span className="text-gray-400 text-xs">{formatTime(request.timestamp)}</span>
+                  </div>
+                  <h4 className="text-lg font-semibold">
+                    {request.senderId === user.id ? `To: ${request.receiverName}` : `From: ${request.senderName}`}
+                  </h4>
+                  <p className="text-gray-600 text-sm">{request.workPostTitle}</p>
+                  
+                  {request.workerDetails && (
+                    <div className="mt-2 p-2 bg-gray-50 rounded text-sm">
+                      <p><strong>Skill:</strong> {request.workerDetails.skill}</p>
+                      <p><strong>Exp:</strong> {request.workerDetails.experience} years</p>
+                    </div>
+                  )}
+                </div>
+                
+                {request.status === 'pending' && request.receiverId === user.id && (
+                  <div className="flex space-x-2">
+                    <button 
+                      onClick={() => handleConnectionResponse(request.id || (request as any)._id, 'accepted')}
+                      className="p-2 bg-green-100 text-green-600 rounded-full hover:bg-green-200"
+                    >
+                      <Check size={20} />
+                    </button>
+                    <button 
+                      onClick={() => handleConnectionResponse(request.id || (request as any)._id, 'declined')}
+                      className="p-2 bg-red-100 text-red-600 rounded-full hover:bg-red-200"
+                    >
+                      <X size={20} />
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
           ))
@@ -432,6 +554,50 @@ export const ContractorDashboard: React.FC<ContractorDashboardProps> = ({ user, 
     </div>
   );
 
+  const renderSavedWorkers = () => (
+    <div className="space-y-6">
+      <h3 className="text-lg font-semibold text-gray-800">Saved Candidates</h3>
+      <div className="space-y-4">
+        {savedWorkers.length === 0 ? (
+          <div className="bg-white rounded-lg shadow-md p-8 text-center text-gray-500">
+            No saved candidates found.
+          </div>
+        ) : (
+          savedWorkers.map((worker) => (
+            <div key={worker.id || worker._id} className="bg-white rounded-lg shadow-md p-6">
+              <div className="flex justify-between items-start">
+                <div>
+                  <h3 className="text-xl font-semibold text-gray-800">{worker.name}</h3>
+                  <div className="text-gray-600 font-medium">{worker.skill}</div>
+                  <div className="text-gray-600 font-medium">Experience: {worker.experience} years</div>
+                  <div className="flex items-center text-gray-500 mt-1">
+                    <MapPin size={14} className="mr-1" />
+                    <span>Location: {worker.pincode}</span>
+                  </div>
+                  <div className="flex items-center text-gray-500 mt-1">
+                    <Phone size={14} className="mr-1" />
+                    {worker.mobile || worker.phone || 'No phone number provided'}
+                  </div>
+                </div>
+                <div className="flex flex-col space-y-2">
+                  {connectionRequests.some(r => 
+                    r.receiverId === (worker.workerId || worker.userId || (worker as any)._id) && 
+                    r.workerPostId === (worker._id || worker.id) && 
+                    r.status === 'pending'
+                  ) ? (
+                    <button className="bg-gray-400 text-white px-4 py-2 rounded-md cursor-not-allowed" disabled>Request Sent</button>
+                  ) : (
+                    <button onClick={() => handleContactWorker(worker)} className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors">Contact</button>
+                  )}
+                </div>
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+    </div>
+  );
+
   return (
     <div className="min-h-screen bg-gray-50 p-8">
       <div className="max-w-7xl mx-auto">
@@ -449,10 +615,21 @@ export const ContractorDashboard: React.FC<ContractorDashboardProps> = ({ user, 
           <nav className="flex space-x-8">
             <button onClick={() => setActiveTab('findWorkers')} className={`py-4 ${activeTab === 'findWorkers' ? 'border-b-2 border-blue-500 text-blue-600' : 'text-gray-500'}`}>Find Workers</button>
             <button onClick={() => setActiveTab('myWorkPosts')} className={`py-4 ${activeTab === 'myWorkPosts' ? 'border-b-2 border-blue-500 text-blue-600' : 'text-gray-500'}`}>My Work Posts</button>
+            <button onClick={() => setActiveTab('savedWorkers')} className={`py-4 ${activeTab === 'savedWorkers' ? 'border-b-2 border-blue-500 text-blue-600' : 'text-gray-500'}`}>Saved Candidates</button>
+            <button onClick={() => setActiveTab('requests')} className={`py-4 relative ${activeTab === 'requests' ? 'border-b-2 border-blue-500 text-blue-600' : 'text-gray-500'}`}>
+              Requests
+              {connectionRequests.filter(r => r.receiverId === user.id && r.status === 'pending').length > 0 && (
+                <span className="absolute top-2 -right-4 bg-red-500 text-white text-[10px] w-4 h-4 flex items-center justify-center rounded-full">
+                  {connectionRequests.filter(r => r.receiverId === user.id && r.status === 'pending').length}
+                </span>
+              )}
+            </button>
           </nav>
         </div>
         {activeTab === 'findWorkers' && renderFindWorkers()}
         {activeTab === 'myWorkPosts' && renderMyWorkPosts()}
+        {activeTab === 'savedWorkers' && renderSavedWorkers()}
+        {activeTab === 'requests' && renderRequests()}
       </div>
     </div>
   );
