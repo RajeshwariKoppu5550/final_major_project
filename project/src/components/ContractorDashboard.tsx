@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { User, WorkPost, ConnectionRequest, ChatMessage } from '../types/user';
-import { Search, MapPin, Clock, IndianRupee, MessageCircle, Heart, Edit, Trash2, Send, X, Check, Mail, Phone, Star, Calendar, User as UserIcon, Briefcase, Plus, Filter, Bell, LogOut } from 'lucide-react';
+import { Search, MapPin, Clock, IndianRupee, MessageCircle, Heart, Edit, Trash2, Send, X, Check, Mail, Phone, Star, Calendar, User as UserIcon, Briefcase, Plus, Filter, Bell, LogOut, RefreshCw } from 'lucide-react';
 
 interface ContractorDashboardProps {
   user: User;
@@ -73,10 +73,14 @@ export const ContractorDashboard: React.FC<ContractorDashboardProps> = ({ user, 
       const allChats = await chatsRes.json();
       const savedItemsResult = await savedRes.json();
 
-      setMyWorkPosts(allWorkPosts && Array.isArray(allWorkPosts) ? allWorkPosts.filter((post: any) => post.contractorId === user.id || post.userId === user.id) : []);
+      setMyWorkPosts(allWorkPosts && Array.isArray(allWorkPosts) ? allWorkPosts.filter((post: any) => 
+        (post.contractorId?.toString() === user.id?.toString()) || 
+        (post.userId?.toString() === user.id?.toString())
+      ) : []);
       setWorkers(allWorkerProfiles && Array.isArray(allWorkerProfiles) ? allWorkerProfiles.filter((p: any) => p.status === 'active') : []);
       setConnectionRequests(allRequests && Array.isArray(allRequests) ? allRequests.filter((r: ConnectionRequest) => 
-        r.receiverId === user.id || r.senderId === user.id
+        r.receiverId?.toString() === user.id?.toString() || 
+        r.senderId?.toString() === user.id?.toString()
       ) : []);
       setChats(allChats && typeof allChats === 'object' ? allChats : {});
 
@@ -446,7 +450,12 @@ export const ContractorDashboard: React.FC<ContractorDashboardProps> = ({ user, 
 
   const renderRequests = () => (
     <div className="space-y-6">
-      <h3 className="text-lg font-semibold text-gray-800">Connection Requests</h3>
+      <div className="flex justify-between items-center">
+        <h3 className="text-lg font-semibold text-gray-800">Connection Requests</h3>
+        <button onClick={loadData} className="text-sm bg-gray-100 text-gray-600 px-3 py-1 rounded hover:bg-gray-200 flex items-center">
+          <RefreshCw size={14} className="mr-1" /> Refresh
+        </button>
+      </div>
       <div className="space-y-4">
         {connectionRequests.length === 0 ? (
           <div className="bg-white rounded-lg shadow-md p-8 text-center text-gray-500">

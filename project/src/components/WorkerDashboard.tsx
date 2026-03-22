@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { User, WorkPost, ConnectionRequest, ChatMessage } from '../types/user';
-import { Search, MapPin, Clock, IndianRupee, MessageCircle, Heart, Edit, Trash2, Send, X, Check, Mail, Phone, Star, Calendar, User as UserIcon, Briefcase, Filter, Bell, LogOut } from 'lucide-react';
+import { Search, MapPin, Clock, IndianRupee, MessageCircle, Heart, Edit, Trash2, Send, X, Check, Mail, Phone, Star, Calendar, User as UserIcon, Briefcase, Plus, Filter, Bell, LogOut, RefreshCw } from 'lucide-react';
 
 interface WorkerDashboardProps {
   user: User;
@@ -52,9 +52,13 @@ export const WorkerDashboard: React.FC<WorkerDashboardProps> = ({ user, onLogout
       const savedItemsResult = await savedRes.json();
 
       setWorkPosts(allWorkPosts && Array.isArray(allWorkPosts) ? allWorkPosts.filter((post: any) => post.status === 'active') : []);
-      setMyProfiles(allProfiles && Array.isArray(allProfiles) ? allProfiles.filter((p: any) => p.workerId === user.id || p.userId === user.id) : []);
+      setMyProfiles(allProfiles && Array.isArray(allProfiles) ? allProfiles.filter((p: any) => 
+        p.workerId?.toString() === user.id?.toString() || 
+        p.userId?.toString() === user.id?.toString()
+      ) : []);
       setConnectionRequests(allRequests && Array.isArray(allRequests) ? allRequests.filter((r: ConnectionRequest) => 
-        r.receiverId === user.id || r.senderId === user.id
+        r.receiverId?.toString() === user.id?.toString() || 
+        r.senderId?.toString() === user.id?.toString()
       ) : []);
       setChats(allChats && typeof allChats === 'object' ? allChats : {});
 
@@ -219,7 +223,12 @@ export const WorkerDashboard: React.FC<WorkerDashboardProps> = ({ user, onLogout
 
   const renderRequests = () => (
     <div className="space-y-6">
-      <h3 className="text-lg font-semibold text-gray-800">Connection Requests</h3>
+      <div className="flex justify-between items-center">
+        <h3 className="text-lg font-semibold text-gray-800">Requests & Applications</h3>
+        <button onClick={loadData} className="text-sm bg-gray-100 text-gray-600 px-3 py-1 rounded hover:bg-gray-200 flex items-center">
+          <RefreshCw size={14} className="mr-1" /> Refresh
+        </button>
+      </div>
       <div className="space-y-4">
         {connectionRequests.length === 0 ? (
           <div className="bg-white rounded-lg shadow-md p-8 text-center text-gray-500">
@@ -304,9 +313,26 @@ export const WorkerDashboard: React.FC<WorkerDashboardProps> = ({ user, onLogout
                   {post.pincode}
                 </div>
                 <div className="text-green-600 font-semibold mt-2">{post.budget}</div>
+                
+                {/* Application Status Badge */}
+                {connectionRequests.find(r => r.workPostId === (post.id || (post as any)._id) && r.senderId === user.id) && (
+                  <div className="mt-3">
+                    <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
+                      connectionRequests.find(r => r.workPostId === (post.id || (post as any)._id) && r.senderId === user.id)?.status === 'pending' ? 'bg-yellow-100 text-yellow-700' :
+                      connectionRequests.find(r => r.workPostId === (post.id || (post as any)._id) && r.senderId === user.id)?.status === 'accepted' ? 'bg-green-100 text-green-700' :
+                      'bg-red-100 text-red-700'
+                    }`}>
+                      Application Output: {connectionRequests.find(r => r.workPostId === (post.id || (post as any)._id) && r.senderId === user.id)?.status.toUpperCase()}
+                    </span>
+                  </div>
+                )}
               </div>
               <div className="flex flex-col space-y-2">
-                <button onClick={() => handleApplyToJob(post)} className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700">Apply Now</button>
+                {connectionRequests.some(r => r.workPostId === (post.id || (post as any)._id) && r.senderId === user.id && r.status === 'pending') ? (
+                  <button className="bg-gray-400 text-white px-4 py-2 rounded-md cursor-not-allowed" disabled>Applied</button>
+                ) : (
+                  <button onClick={() => handleApplyToJob(post)} className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700">Apply Now</button>
+                )}
                 <button onClick={() => handleSaveJob(post)} className="bg-gray-100 text-gray-700 px-4 py-2 rounded-md hover:bg-gray-200 flex items-center">
                   <Heart size={16} className="mr-2" /> Save
                 </button>
